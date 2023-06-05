@@ -36,9 +36,9 @@ Transform (xs) =
   if (Data.U60.to_bool (== idx 0)){
     xs
   } else {
-    (Data.List.concat
+    Transform (Data.List.concat
       (Data.List.concat
-        ([(List.get_token xs (- idx 1))])
+        ((Data.List.take xs (Data.U60.to_nat (- idx 1))))
         [(BinaryTransform
             (List.get_token xs (- idx 1))
             (List.get_token xs idx)
@@ -50,12 +50,12 @@ Transform (xs) =
 List.get_token (xs: Data.List Token) (n: Data.U60)  : Token
 List.get_token  Data.List.nil n                     = Token.error "Index out of bounds"
 List.get_token (Data.List.cons x xs) 0              = x
-List.get_token (Data.List.cons x xs) (n)            = List.get_token xs n
+List.get_token (Data.List.cons x xs) (n)            = List.get_token xs (- n 1)
 
 List.get <a> (xs: Data.List a) (n: Data.U60) (m: a) : a
 List.get a Data.List.nil n  m                       = m
 List.get a (Data.List.cons x xs) 0 m                = x
-List.get a (Data.List.cons x xs) (n) m              = List.get xs n m
+List.get a (Data.List.cons x xs) (n) m              = List.get xs (- n 1) m
 
 #partial
 BinaryTransform (left: Token) (op: Token) (right: Token) : Token
@@ -64,19 +64,30 @@ BinaryTransform (Token.token left) (Token.op "+") (Token.token right) = Token.to
 BinaryTransform (Token.token left) (Token.op "-") (Token.token right) = Token.token (Expr.sub left right)
 
 HighestPrecedenceIdx (xs: Data.List Token)      : Data.U60
-HighestPrecedenceIdx Data.List.nil              = '0'
+HighestPrecedenceIdx Data.List.nil              = ' '
 HighestPrecedenceIdx (Data.List.cons xs.h xs.t) =
   let xs    = Data.List.cons xs.h xs.t
-  let cond  = Data.U60.to_bool (== (Data.Nat.to_u60(Data.List.length xs)) 0)
   let tks   = PrecedenceMap xs
+  let cond  = Data.U60.to_bool (== (Maximus tks) 0)
   if cond {
     0
   } else {
     let rng     = List.range (Data.Nat.to_u60 (Data.List.length xs.t))
-    let maximum = Data.Nat.to_u60 (Data.List.length xs) 
+    let maximum = Maximus tks //Data.Nat.to_u60 (Data.List.length xs) 
     let lamb    = (Data.List.filter rng ((k: Data.U60) => Data.U60.to_bool (== (Index.U60 tks k) maximum)))
     (List.get lamb 0 0) 
   }
+
+Maximus (xs: Data.List Data.U60) : Data.U60
+Maximus Data.List.nil = 0
+Maximus (Data.List.cons x xs) = 
+  let m = Maximus xs
+  if (Data.U60.to_bool (> x m)) {
+    x
+  } else {
+    m
+  }
+
 
 #partial
 Index.U60 <a> (xs: Data.List a) (n: Data.U60) : a
@@ -128,14 +139,14 @@ Tokenize (Data.String.cons s.h s.t) =
   let str   = Data.String.cons s.h s.t
   let xs    = Data.String.to_list str
   let val   = Data.List.take_while (c => Data.List.is_nil (Data.List.filter Ops (y => Data.U60.to_bool ( == c (Data.Pair.fst y))))) xs
-  let chr   = Data.String.to_char str
+  let chr   = Char.to_digit (Data.String.to_char str)
   let len   = Data.List.length val
   let len2  = Data.Nat.to_u60 (Data.List.length val)
   let cond  = Data.Nat.equal (Data.String.length str) len
    if cond {
     [(Token.token (Expr.val chr))]
    } else {                                                             //  |/ char.to_string
-    Data.List.cons (Token.token (Expr.val chr)) (Data.List.cons (Token.op (U60.show (List.get xs len2 '0'))) (Tokenize (Data.String.drop (len) str)))
+    Data.List.cons (Token.token (Expr.val chr)) (Data.List.cons (Token.op (Data.Char.to_string (List.get xs len2 ' '))) (Tokenize (Data.String.drop (len) s.t)))
 // ?
    }
   
@@ -173,9 +184,7 @@ Normalize (Data.String.cons s str) =
   }
 
 Main {
-  // (List.show (List.range 10))
-  (Tokenize (Normalize "1+2"))
-  // (U60.show 50)
+  (Eval "1+2*5")
 }
 
 
