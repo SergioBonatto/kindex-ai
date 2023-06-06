@@ -179,7 +179,9 @@ Bfs
 Bfs g i0 i1 =
   let prev = Bfs_ g i0 i1 [i0] [i0] (Data.Vector.replicate (Data.Nat.succ (Data.U60.to_nat i1)) i1)
   // (ReturnPath prev i1 Data.List.nil)
-  (Return.path prev i1 i0 [])
+  // (Return.path prev i1 i0 [])
+  (MeuPath prev i1 [])
+
   // (GetPath prev [i0])
 
 Data.Vector.replicate 
@@ -225,23 +227,7 @@ Return.path prev l l1 res =
     } else {
       Data.List.concat res [l1]
     }
-       // returnPath prev ι ι₁ res | No _ | Yes _ | []  res -- path to node does not exist
-      // returnPath prev ι ι₁ res | No _ | Yes _ | xs = res ++ [idxval ι₁] -- path found from ι₀ to ι₁
-    // } else {
-       // returnPath prev ι ι₁ res | No _ | No _ = res ++ [idxval ι₁] -- path found, search for self
-    // }
-    // ?
   }
-
-
-// Return.path
-  // <n: Data.Nat>
-  // (prev: Data.Vector (Data.U60) n)
-  // (i: Data.U60)
-  // (l: Data.List Data.U60)
-  // : Data.List Data.U60
-// Return.path prev l res =
-
 
 
 // getPath : List (Int, Maybe Int) -> List Int -> Maybe (List Int)
@@ -253,6 +239,7 @@ Return.path prev l l1 res =
 //                           Just path => Just (x :: path)
 //                           Nothing   => Nothing
 //        None          => Just (x :: xs)
+
 GetPath 
   <n: Data.Nat> 
   (prev: Data.Vector (Data.U60) n) 
@@ -341,16 +328,83 @@ ReturnPath.old n (Data.Vector.cons j y ys) x l =
   if (cond){
     Data.List.concat [y1] (ReturnPath.old j ys y1 l1)
   } else {
-    // (ReturnPath j ys y1 l1)
     Data.List.concat [] (ReturnPath.old j ys y1 l1)
+    // ?
   }
 
+
+MeuPath2
+  <n: Data.Nat>
+  (prev: Data.Vector Data.U60 (n))
+  (l: Data.U60)
+  (l0: Data.U60)
+  (l1: Data.U60)
+  (res: Data.List Data.U60)
+  : Data.List Data.U60
+MeuPath2 n prev l l0 l1 res =
+  let x = Vector.lookup ((Data.U60.to_nat l)) prev
+  let cond = Data.U60.to_bool (== l1 x)
+  if cond {
+    if (Data.Bool.not (Data.U60.to_bool (== l1 l0))) {
+     match Data.List res {
+        nil  => res
+        cons => Data.List.concat res [l1]
+      }
+    } else {
+      Data.List.concat res [l1]
+    }
+  } else {
+    MeuPath2 n prev x l0 l1 (Data.List.cons x res)
+  }
+
+
+// RP <a> <i: Data.Nat> (v: Data.Vector a i) (idx: Data.Nat) (ids: Data.Nat) (idr: Data.Nat) (ln: Data.List Data.Nat) : Data.List Data.Nat
+// RP a i prev idx ids idr res =
+//     let cond = Data.Nat.equal (index prev idx) (ids)
+//     if cond {
+//         let cond = Data.Nat.equal ids idr
+//         if cond {
+//             Data.List.concat res ids
+//         } else {
+//             match Data.List res {
+//                 nil => res
+//                 cons => Data.List.concat res ids
+//             }
+//         }
+//     } else {
+//         RP prev (index prev idx) (Data.List.cons (index prev idx) res)
+//     }
+//
+
+MeuPath 
+  <n : Data.Nat> 
+  (prev : Data.Vector Data.U60 (n)) 
+  (l : Data.U60) 
+  (res : Data.List Data.U60) 
+  : Data.List Data.U60
+MeuPath n  Data.Vector.nil          x l = l
+MeuPath n (Data.Vector.cons j y ys) x l =
+  let tot  = Data.Vector.cons j y ys
+  let prev = GetPrev tot x
+  let cond = Data.U60.to_bool (== x y)
+  if cond {
+    let vc = Vector.lookup (Data.Nat.succ (Data.U60.to_nat x)) tot
+    let cond1 = Data.U60.to_bool (== vc x)
+    if cond1 {
+      (Data.List.concat l [x])
+    } else {
+      (Data.List.concat (MeuPath ys prev l ) [x]) 
+    }
+  } else {
+    (MeuPath ys (prev) (Data.List.cons prev l))
+  }
+//
 Vector.lookup
   <n: Data.Nat>
   (i: Data.Nat) 
   (v: Data.Vector Data.U60 n) 
   : Data.U60
-Vector.lookup n                i  (Data.Vector.nil)         = 0
+Vector.lookup n                i  (Data.Vector.nil)         = Data.Char.null
 Vector.lookup n  Data.Nat.zero    (Data.Vector.cons j x xs) = x
 Vector.lookup n (Data.Nat.succ i) (Data.Vector.cons j x xs) = Vector.lookup i xs
 
@@ -364,6 +418,14 @@ Vector.lookup.maybe
 Vector.lookup.maybe t n                i  (Data.Vector.nil)         = Data.Maybe.none
 Vector.lookup.maybe t n  Data.Nat.zero    (Data.Vector.cons j x xs) = Data.Maybe.some x
 Vector.lookup.maybe t n (Data.Nat.succ i) (Data.Vector.cons j x xs) = Vector.lookup.maybe t j i xs
+
+GetPrev 
+  <n: Data.Nat> 
+  (v: Data.Vector Data.U60 (Data.Nat.succ n)) 
+  (x: Data.U60) 
+  : Data.U60
+GetPrev n v x = Vector.lookup (Data.Nat.succ (Data.U60.to_nat x)) v
+
 
 Update_prevs 
   <n: Data.Nat> 
@@ -412,7 +474,7 @@ Bfs_ g i j (Data.List.cons x xs) s v =
 // [1,2,3]
 // [2, 0, 0, 2, 0, 3]
 Main {
-  // Data.Vector.create 3n (x => Data.Vector.create 3n (y => (Data.Nat.succ y)))
+  let v = Data.Vector.create 3n (x => 0)
   // Matrix.create 3n 3n 1 ((x: Data.U60) => (Data.U60.add 1 x))
   let lista = [1, 4, 2, 6, 3, 8, 33, 0, 9]
   // let grafo = Graph.new ()
@@ -426,7 +488,10 @@ Main {
   let g = Graph.addedge g (Data.Pair.new 3 3)
   // (Bfs_traverse g 2)
   (Bfs g 1 3)
+  // [2, 0, 2, 3]
+  // (MeuPath v 3 [])
   // let h = Data.Vector.cons 2n 0 (Data.Vector.cons 1n 0 (Data.Vector.cons 0n 0 (Data.Vector.nil)))
+
   // (GetPath h [] )
   // Get.adjacent 4 g
   // (ReturnPath 3 g 1 Data.List.nil)
