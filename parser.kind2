@@ -19,6 +19,12 @@ type Num {
   succval (n: Num)
 }
 
+type Le (n: Data.Nat) ~ (m: Data.Nat) {
+    n : Le n n
+    S <m: Data.Nat> (pred: (Le n m)) : (Le n (Data.Nat.succ m)) 
+}
+
+
 Consts (e: Term)          : Data.List (Term)
 Consts (Term.true)        = [Term.true]
 Consts (Term.false)       = [Term.false]
@@ -28,23 +34,91 @@ Consts (Term.pred t1)     = Consts(t1)
 Consts (Term.iszero t1)   = Consts(t1)
 Consts (Term.if t1 t2 t3) = Data.List.concat (Consts(t1)) (Data.List.concat (Consts(t2)) (Consts(t3)))
 
-Size (e: Term)          : Data.U60
-Size (Term.true)        = 1
-Size (Term.false)       = 1
-Size (Term.zero)        = 1
-Size (Term.succ t1)     = (+ (Size(t1)) 1)
-Size (Term.pred t1)     = (+ (Size(t1)) 1)
-Size (Term.iszero t1)   = (+ (Size(t1)) 1)
-Size (Term.if t1 t2 t3) = (+ (+ (+ (Size (t1)) (Size(t2))) (Size(t3))) 1)
+Size (e: Term)          : Data.Nat
+Size (Term.true)        = 1n
+Size (Term.false)       = 1n
+Size (Term.zero)        = 1n
+Size (Term.succ t1)     = (Data.Nat.succ (Size(t1)))
+Size (Term.pred t1)     = (Data.Nat.succ (Size(t1)))
+Size (Term.iszero t1)   = (Data.Nat.succ (Size(t1)))
+Size (Term.if t1 t2 t3) = (Data.Nat.succ (Data.Nat.add (Data.Nat.add (Size (t1)) (Size(t2))) (Size(t3))))
 
-Depth (e: Term)          : Data.U60
-Depth (Term.true)        = 1
-Depth (Term.false)       = 1
-Depth (Term.zero)        = 1
-Depth (Term.succ t1)     = (+ (Depth(t1)) 1)
-Depth (Term.pred t1)     = (+ (Depth(t1)) 1)
-Depth (Term.iszero t1)   = (+ (Depth(t1)) 1)
-Depth (Term.if t1 t2 t3) = (+ (Data.U60.max (Depth(t1)) (Data.U60.max (Depth(t2)) (Depth(t3)))) 1)
+Depth (e: Term)          : Data.Nat
+Depth (Term.true)        = 1n
+Depth (Term.false)       = 1n
+Depth (Term.zero)        = 1n
+Depth (Term.succ t1)     = (Data.Nat.succ (Depth(t1)))
+Depth (Term.pred t1)     = (Data.Nat.succ (Depth(t1)))
+Depth (Term.iszero t1)   = (Data.Nat.succ (Depth(t1)))
+Depth (Term.if t1 t2 t3) = (Data.Nat.succ (Data.Nat.max (Depth(t1)) (Data.Nat.max (Depth(t2)) (Depth(t3)))))
+
+// 3.3.3
+Size.le_depth (t: Term): Le (Data.List.length (Consts t)) (Size t)
+Size.le_depth Term.true      = Le.n
+Size.le_depth Term.false     = Le.n
+Size.le_depth Term.zero      = Le.n
+Size.le_depth (Term.succ t1) =
+  let ind = Size.le_depth t1
+  let app = Le.S ind
+  app
+Size.le_depth (Term.pred t1) =
+  let ind = Size.le_depth t1
+  let app = Le.S ind
+  app
+Size.le_depth (Term.iszero t1) =
+  let ind = Size.le_depth t1
+  let app = Le.S ind
+  app
+Size.le_depth (Term.if t1 t2 t3) = 
+  let ind1 = Size.le_depth t1
+  let ind2 = Size.le_depth t2
+  let ind3 = Size.le_depth t3
+  Size.le_depth.aux t1 t2 t3 ind1 ind2 ind3   
+
+#partial
+Le.trans 
+  <n: Data.Nat> 
+  <m: Data.Nat> 
+  <o: Data.Nat> 
+  (l: Le n m) (e2: Le m o)  
+  : Le n o  
+Le.trans n m o l (Le.n x)                   = l :: Le n x 
+Le.trans n m (Data.Nat.succ o) l (Le.S (x)) = Le.S (Le.trans n m o l x)
+// Le.trans n m Data.Nat.zero l (Le.S (x)) = ?
+
+// Le_plus_left : Le n m -> Le (n + k) (m + k)
+Le.plus_left 
+  <n: Data.Nat> 
+  <m: Data.Nat> 
+  <k: Data.Nat> 
+  (l: Le n m) 
+  : Le (Data.Nat.add n k) (Data.Nat.add m k)
+Le.plus_left n m Data.Nat.zero l =
+  let zrn   = Add_zero_right n  
+  let zrm   = Add_zero_right m
+  let rwtn  = Prop.Equal.rewrite (zrn) (x => Le x m) l
+  let rwtm  = Prop.Equal.rewrite (zrm) (x => Le n x) l
+
+  ?
+
+Add_zero_right (n: Data.Nat)      : Prop.Equal n (Data.Nat.add n 0n)
+Add_zero_right Data.Nat.zero      = Prop.Equal.refl
+Add_zero_right (Data.Nat.succ n)  =
+  let ind = Add_zero_right n
+  let app = Prop.Equal.apply (x => Data.Nat.succ x) ind
+  app
+
+
+Size.le_depth.aux
+  (t1: Term)
+  (t2: Term)
+  (t3: Term)
+  (ta1: Le (Data.List.length (Consts t1)) (Size t1))
+  (ta2: Le (Data.List.length (Consts t2)) (Size t2))
+  (ta3: Le (Data.List.length (Consts t3)) (Size t3))
+  : Le (Data.List.length (Data.List.concat (Consts t1) (Data.List.concat (Consts t2) (Consts t3)))) (Data.Nat.succ (Data.Nat.add (Data.Nat.add (Size t1) (Size t2)) (Size t3)))
+// Size.le_depth.aux t1 t2 t3 ta1 ta2 ta3 =
+  // ?
 
 // #partial
 Eval (e: Term) : Term
@@ -77,13 +151,18 @@ type BadBool{
 // eval (IsZero (BadNat _)) = Wrong
 // eval (If (BadBool _) _ _) = Wrong
 // eval t = ?missingCaseError
-EvalBad (e: Term) : Term
-EvalBad (Term.succ (BadNat.wrong)) = BadNat.wrong
+
+// EvalBad (e: Term) : BadNat
+// EvalBad (Term.succ (BadNat.wrong)) = BadNat.wrong
 
 Main {
   let test1 = Term.if Term.true Term.true (Term.if Term.false Term.false Term.false)
   let test2 = Term.if Term.true (Term.if Term.false Term.false Term.false) Term.true
   //               if      true then (if      false then false else false) else true
-  (Size test2)
+  // (Size test2)
+  let test3 = Le.S (Le.n 4n)
+  let test4 = Le.S (Le.n 3n)
+  // (Le.trans test4 test3)
+  (Le.S (Le.S (Le.n 3n)))
 
 }
