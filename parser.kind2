@@ -170,10 +170,20 @@ Le.plus_left n  Data.Nat.zero    k l =
   let ls = Le.n 0n
   let lk = Le.n (Data.Nat.add 0n k)
   let rwtn = Prop.Equal.rewrite (Prop.Equal.mirror (Add.zero_right n)) (x => Le x 0n) l
-  let lzk = Zero.le k
-  let ltk = Le.trans rwtn lzk
-  let smp = Sempre.zero k
-?
+  let indl = Ind.le n k rwtn
+  indl
+  // let lzk = Zero.le k
+  // let ltk = Le.trans rwtn lzk
+  // let smp = Sempre.zero k
+// ?
+
+
+Ind.le (n: Data.Nat) (k: Data.Nat) (l: Le (Data.Nat.add n Data.Nat.zero) Data.Nat.zero) : Le (Data.Nat.add n k) k
+Ind.le n Data.Nat.zero l     = l
+Ind.le n (Data.Nat.succ k) l = 
+  let ind = (Ind.le n k l)
+  let app = Le.S ind
+  ?
 
 Zero.le (n: Data.Nat): Le 0n n
 Zero.le Data.Nat.zero = Le.n
