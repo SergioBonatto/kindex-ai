@@ -1,0 +1,49 @@
+// type Set (t){
+//   empty
+//   singleton (x: t)
+//   union (a: Set t) (b: Set t)
+// }
+
+
+Data.Set (t)  : Type
+Data.Set t    =  Data.List t
+
+Data.Set.empty <t> : Data.Set t
+Data.Set.empty = []
+
+Data.Set.singleton <t> (x: t) : Data.Set t
+Data.Set.singleton x = [x]
+
+Data.Set.union <t> (a: Data.Set t) (b: Data.Set t) : Data.Set t {
+  Data.List.concat a b
+}
+
+Data.Set.product <t> (a: Data.Set t) (b: Data.Set t): Data.Set (Data.Pair t t) {
+  Data.List.zipper a b
+} 
+
+Data.List.zipper <t> (a: Data.List t) (b: Data.List t) : Data.Set (Data.Pair t t)
+
+
+record Edge (t) {
+  weight: Data.U60
+  from: t
+  to: t
+}
+
+type Graph (t) ~(vertices: Data.Set t) (edges: Data.Set (Edge t)){
+  empty: 
+    Graph t Data.Set.empty Data.Set.empty
+  vertex (x: t): 
+    Graph t (Data.Set.singleton x) Data.Set.empty
+  overlay 
+    <v1: Data.Set t> 
+    <e1: Data.Set (Edge t)> 
+    <v2: Data.Set t> 
+    <e2: Data.Set (Edge t)> 
+    (a: Graph t v1 e1) 
+    (b: Graph t v2 e2): 
+    Graph t (Data.Set.union v1 v2) (Data.Set.union e1 e2 )
+}
+
+

@@ -1,0 +1,10 @@
+
+Theorem_uniqueness 
+  (t : Term) 
+  (u : Term) 
+  (u1: Term) 
+  (e1: MultStep t u) 
+  (e2: MultStep t u1) 
+  (nf_u : NormalForm u) 
+  (nf_u1: NormalForm u1) 
+  : Prop.Equal u u1

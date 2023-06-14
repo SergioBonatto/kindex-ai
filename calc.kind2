@@ -1,3 +1,21 @@
+// Data.List.to_u60 (xs: Data.List Data.U60) : Data.U60 {
+//     Data.List.to_u60.go (Data.List.filter xs (x => Data.Char.is_digit x))
+// }
+//
+// Data.U60.pow (x: Data.U60) (y: Data.U60) : Data.U60
+// Data.U60.pow x 0 = 1
+// Data.U60.pow x y = (* x (Data.U60.pow x (- y 1)))
+//
+// Data.List.to_u60.go (xs: Data.List Data.U60) : Data.U60
+// Data.List.to_u60.go Data.List.nil = 0
+// Data.List.to_u60.go (Data.List.cons head tail) =
+//     let head = Data.Char.to_digit head
+//     let len = Data.Nat.to_u60 (Data.List.length tail)
+//     let add = (* head (Data.U60.pow 10 len))
+//     (+ add (Data.List.to_u60.go tail))
+//
+//
+
 // --TODO: define appropriate data types for failure/success
 // --TODO: add support for more operations
 #derive[match]
@@ -123,16 +141,6 @@ Get_precedence x =
     Data.List.filter Ops ((y: Data.Pair Data.Char Data.U60) => Data.Char.equal x (Data.Pair.fst y))))
     0 (x => Data.Pair.snd x)) 
  
-// tokenize :: String -> [Token]
-// tokenize str
-//   | length str == matchL = [Token (Val (read str))]
-//   | otherwise =
-//     (Token (Val (read val))) :
-//     (Op [str !! matchL]) : (tokenize (drop (matchL + 1) str))
-//   where
-//     val = takeWhile (\c -> null (filter (\(op, prec) -> c == op) ops)) str
-    // val = takeWhile (\c => notElem c (map (\(op, _) => op) ops)) str
-//     matchL = length val
 Tokenize (s: Data.String) : Data.List Token
 Tokenize Data.String.nil = Data.List.nil
 Tokenize (Data.String.cons s.h s.t) =
@@ -149,6 +157,7 @@ Tokenize (Data.String.cons s.h s.t) =
     Data.List.cons (Token.token (Expr.val chr)) (Data.List.cons (Token.op (Data.Char.to_string (List.get xs len2 ' '))) (Tokenize (Data.String.drop (len) s.t)))
 // ?
    }
+
   
 // Token (Val (parseInteger val)) ::
                 // Op [str !! matchL] ::
@@ -184,7 +193,7 @@ Normalize (Data.String.cons s str) =
   }
 
 Main {
-  (Eval "1+2*5+3")
+  (Eval "1+2*5")
 }
 //
 //
