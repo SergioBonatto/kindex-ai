@@ -409,7 +409,7 @@ type Valueb ~(t: Term) {
 IsNormalForm1 (e: Term) : Data.Bool  
 IsNormalForm1 e = Data.Bool.or (Data.Bool.not (IsValue e)) (
     match Term e {
-      tif   => Data.Bool.and (Data.Bool.not (IsValue e.tp)) (IsNormalForm e.tp)
+      tif   => Data.Bool.and (Data.Bool.not (IsValue e.tp)) (IsNormalForm1 e.tp)
       true  => Data.Bool.false
       false => Data.Bool.false
     }
@@ -426,24 +426,24 @@ Theorem358 (Term.tif t1 t2 t3) is = Data.Empty.absurd (Data.Bool.false_not_true 
 
 // 3.5.9
 #derive[match]
-type MultStep ~(t1: Term) (t2: Term) {
-  refl (t: Term) : MultStep t t
-  step (t3: Term) (t4: Term) (t5: Term) (s: Step t3 t4) (m: MultStep t4 t5) : MultStep t3 t5
+type MultiStep ~(t1: Term) (t2: Term) {
+  refl (t: Term) : MultiStep t t
+  step (t3: Term) (t4: Term) (t5: Term) (s: Step t3 t4) (m: MultiStep t4 t5) : MultiStep t3 t5
 }
 
-Eval.zero (t: Term) : MultStep t t
-Eval.zero t = MultStep.refl t
+Eval.zero (t: Term) : MultiStep t t
+Eval.zero t = MultiStep.refl t
 
-Eval.one (t1: Term) (t2: Term) (s: Step t1 t2) : MultStep t1 t2
-Eval.one t1 t2 s = MultStep.step t1 t2 t2 s (MultStep.refl t2)
+Eval.one (t1: Term) (t2: Term) (s: Step t1 t2) : MultiStep t1 t2
+Eval.one t1 t2 s = MultiStep.step t1 t2 t2 s (MultiStep.refl t2)
 
-Eval.multi (t1: Term) (t2: Term) (t3: Term) (s: MultStep t1 t2) (m: MultStep t2 t3) : MultStep t1 t3
-Eval.multi t1 t2 t3 (MultStep.refl t) m = 
+Eval.multi (t1: Term) (t2: Term) (t3: Term) (s: MultiStep t1 t2) (m: MultiStep t2 t3) : MultiStep t1 t3
+Eval.multi t1 t2 t3 (MultiStep.refl t) m = 
   let eq1 = Prop.Equal.refl :: Prop.Equal t  t1
   let eq2 = Prop.Equal.refl :: Prop.Equal t2 t
   let ch1 = Prop.Equal.chain eq2 eq1
-  Prop.Equal.rewrite ch1 (x => (MultStep x t3)) m
-Eval.multi t1 t2 t3 (MultStep.step t4 t5 t6 s1 s2) m = MultStep.step t4 t5 t3 s1 (Eval.multi t5 t6 t3 s2 m)
+  Prop.Equal.rewrite ch1 (x => (MultiStep x t3)) m
+Eval.multi t1 t2 t3 (MultiStep.step t4 t5 t6 s1 s2) m = MultiStep.step t4 t5 t3 s1 (Eval.multi t5 t6 t3 s2 m)
 
 type EvalStep ~(a: Term) (b: Term){
   iftrue  <t2: Term> <t3: Term> : EvalStep (Term.tif Term.true  t2 t3) t2
@@ -454,23 +454,23 @@ type EvalStep ~(a: Term) (b: Term){
 
 // 3.5.11
 Determinacy (t: Term) (t1: Term) (t2: Term) : Type
-Determinacy t t1 t2 = (e1: EvalStep t t1) -> (m1: MultStep t1 t2) -> (t3: Term) -> (m2: MultStep t1 t3) -> Prop.Equal t2 t3
+Determinacy t t1 t2 = (e1: EvalStep t t1) -> (m1: MultiStep t1 t2) -> (t3: Term) -> (m2: MultiStep t1 t3) -> Prop.Equal t2 t3
 
 
 // eval_trans : MultiStepEval t u -> MultiStepEval u u' -> MultiStepEval t u'
 // eval_trans eval_u_u' eval'_u'_u'' = MS_Trans eval1 eval_u_u' eval'_u'_u''
-Eval.trans  <t: Term> <u: Term> <u1: Term> (e1: MultStep t u) (e2: MultStep u u1) : MultStep t u1
-Eval.trans t u u1 (MultStep.refl t1) e2 = 
+Eval.trans  <t: Term> <u: Term> <u1: Term> (e1: MultiStep t u) (e2: MultiStep u u1) : MultiStep t u1
+Eval.trans t u u1 (MultiStep.refl t1) e2 = 
   let eq1 = Prop.Equal.refl :: Prop.Equal t1 u
   let eq2 = Prop.Equal.refl :: Prop.Equal t t1
   let ch1 = Prop.Equal.chain eq2 eq1
-  Prop.Equal.rewrite (Prop.Equal.mirror ch1) (x => (MultStep x u1)) e2
-Eval.trans t u u1 (MultStep.step t1 t2 t3 s1 m1) e2 = 
+  Prop.Equal.rewrite (Prop.Equal.mirror ch1) (x => (MultiStep x u1)) e2
+Eval.trans t u u1 (MultiStep.step t1 t2 t3 s1 m1) e2 = 
   let eq1 = Prop.Equal.refl :: Prop.Equal t1 t
   let eq2 = Prop.Equal.refl :: Prop.Equal t3 u
   let tst = Eval.multi t1 t2 t3 (Eval.one t1 t2 s1) m1
-  let rw1 = Prop.Equal.rewrite eq1 (x => (MultStep x t3)) tst
-  let rw2 = Prop.Equal.rewrite eq2 (x => (MultStep t x)) rw1
+  let rw1 = Prop.Equal.rewrite eq1 (x => (MultiStep x t3)) tst
+  let rw2 = Prop.Equal.rewrite eq2 (x => (MultiStep t x)) rw1
   Eval.multi t u u1 rw2 e2
   
 // eval_trans : MultiStepEval t u -> MultiStepEval u u' -> MultiStepEval t u'
@@ -504,20 +504,22 @@ Eval.trans t u u1 (MultStep.step t1 t2 t3 s1 m1) e2 =
   // in
     // cong (eval_sym e1) (cong (eval_sym e2) (theorem_3_5_4 u TBool nf_u nf_u'))
  // If t → t0 and t → t00 then t0 = t00.
- Theorem3511 
+Theorem3511 
   <t  : Term>
   <t0 : Term>
   <t00: Term>
-  (e1 : MultStep t t0)
-  (e2 : MultStep t t00)
+  (nf_t0 : NormalFormb t0)
+  (nf_t00: NormalFormb t00)
+  (e1: MultiStep t t0)
+  (e2: MultiStep t t00)
   : Prop.Equal t0 t00
-Theorem3511 t t0 t00 (MultStep.refl e1) (MultStep.refl e2) = 
+Theorem3511 t t0 t00 nf_t0 nf_t00 (MultiStep.refl e1) (MultiStep.refl e2) = 
   let eq1 = Prop.Equal.refl :: Prop.Equal t0 e1
   let eq2 = Prop.Equal.refl :: Prop.Equal e1 t
   let eq3 = Prop.Equal.refl :: Prop.Equal e2 t00
   let eq4 = Prop.Equal.refl :: Prop.Equal t e2
   Prop.Equal.chain (Prop.Equal.chain eq1 eq2)(Prop.Equal.chain eq4 eq3)
-Theorem3511 t t0 t00 (MultStep.step t1 t2 t3 s1 m1) (MultStep.step t1_ t2_ t3_ s1_ m1_) =
+Theorem3511 t t0 t00 nf_t0 nf_t00 (MultiStep.step t1 t2 t3 s1 m1) (MultiStep.step t1_ t2_ t3_ s1_ m1_) =
   let eq1 = Prop.Equal.refl :: Prop.Equal t3  t0
   let eq2 = Prop.Equal.refl :: Prop.Equal t3_ t00
   let eq3 = Prop.Equal.refl :: Prop.Equal t1  t
@@ -526,59 +528,152 @@ Theorem3511 t t0 t00 (MultStep.step t1 t2 t3 s1 m1) (MultStep.step t1_ t2_ t3_ s
   let tr1 = Eval.trans t1 t2 t3 on1 m1
   let on2 = Eval.one t1_ t2_ s1_
   let tr2 = Eval.trans t1_ t2_ t3_ on2 m1_
-  let rw1 = Prop.Equal.rewrite eq3 (x => (MultStep x t3))  tr1
-  let rw2 = Prop.Equal.rewrite eq4 (x => (MultStep x t3_)) tr2
-  let rw3 = Prop.Equal.rewrite eq1 (x => (MultStep t x))   rw1
-  let rw4 = Prop.Equal.rewrite eq2 (x => (MultStep t x))   rw2
-  // Theorem3511 t t3 t3_ rw3 rw4
-  ? // TODO: Isso é ID???
-// Theorem3511 t t0 t00 (MultStep.refl e1) (MultStep.step t1 t2 t3 s1 m1) = ?
+  let rw1 = Prop.Equal.rewrite eq3 (x => (MultiStep x t3))  tr1
+  let rw2 = Prop.Equal.rewrite eq4 (x => (MultiStep x t3_)) tr2
+  let ind = Theorem3511 t t3 t3_ nf_t0 nf_t00 rw1 rw2
+  let rw3 = Prop.Equal.rewrite eq1 (x => (Prop.Equal x t3_)) ind
+  Prop.Equal.rewrite eq2 (x => (Prop.Equal t0 x)) rw3
+Theorem3511 t t0 t00 nf_t0 nf_t00 (MultiStep.step t1 t2 t3 s1 m1) (MultiStep.refl e2) = 
+  let eq1 = Prop.Equal.refl :: Prop.Equal t3 t0
+  let eq2 = Prop.Equal.refl :: Prop.Equal t1 t
+  let eq3 = Prop.Equal.refl :: Prop.Equal e2 t00
+  let eq4 = Prop.Equal.refl :: Prop.Equal t e2
+  let ch1 = Prop.Equal.chain eq4 eq3
+  let rw1 = Prop.Equal.rewrite ch1 (x => Step x t2 ) s1
+  let nf1 = nf_t00 t2 rw1
+  Data.Empty.absurd nf1
+Theorem3511 t t0 t00 nf_t0 nf_t00 (MultiStep.refl e1) (MultiStep.step t1 t2 t3 s1 m1) =
+  let eq1 = Prop.Equal.refl :: Prop.Equal t3 t00 
+  let eq2 = Prop.Equal.refl :: Prop.Equal t1  t
+  let eq3 = Prop.Equal.refl :: Prop.Equal e1 t0
+  let eq4 = Prop.Equal.refl :: Prop.Equal t  e1
+  let ch1 = Prop.Equal.chain eq4 eq3
+  let ch2 = Prop.Equal.chain eq2 ch1
+  let rw1 = Prop.Equal.rewrite ch2 (x => Step x t2) s1
+  let nf1 = nf_t0 t2 rw1
+  Data.Empty.absurd nf1
+
+//3.5ch
+// For every term t there is some normal form t0 such that t -→∗t
+// Measure <t: Term> : Data.Nat
+// Measure t = Size t
+  //   terminationStep : (t : Term) -> (size : Nat) ->
+  //                     Sigma (t0 : Term) (EvalStep t t0 /\ sizeOfTerm t0 < size)
+// TerminationStep
+  // <t: Term>
+  // (size: Data.Nat)
+  // : [t0: Term] -> (Data.Pair (MultiStep t t0) (Le (Size t0) size))
+// TerminationStep Term.true (Data.Nat.succ Data.Nat.zero) =
+  // let ms = MultiStep.refl Term.true
+  // Data.Sigma.new Term.true (Data.Pair.new ms (Le.n (Size Term.true)))
+  // ?
+  //   terminationStep t size =
+  //     case evalStep t of
+  //       Left _ => (t, (t, LT_refl))
+  //       Right t' => let (t0, (evalStepT0, sizeT0)) = terminationStep t' size in
+  //                   (t0, (evalStepT0, LT_le_S sizeT0))
+  // in
+  //   wellFounded measure terminationStep t
+
+#partial
+Theorem3512
+  <t: Term>
+  : [t0: Term] -> (Data.Pair (Prop.Equal Data.Bool.true (IsNormalForm t0)) (MultiStep t t0))
+Theorem3512 Term.true =
+  let t0 = Term.true
+  let nf_t0 = Prop.Equal.refl :: Prop.Equal Data.Bool.true (IsNormalForm Term.true)
+  let ms_t_t0 = MultiStep.refl t0
+  let par = Data.Pair.new nf_t0 ms_t_t0
+  Data.Sigma.new Term.true par
+Theorem3512 Term.false =
+  let t0 = Term.false
+  let nf_t0 = Prop.Equal.refl :: Prop.Equal Data.Bool.true (IsNormalForm Term.true)
+  let ms_t_t0 = MultiStep.refl t0
+  let par = Data.Pair.new nf_t0 ms_t_t0
+  Data.Sigma.new Term.false par
+Theorem3512 (Term.tif t1 t2 t3) = 
+  let ind = Theorem3512 t1
+  match Data.Sigma ind {
+    new fst snd =>
+      let uno  = fst
+      let duo  = snd
+      // let ind2 = Theorem3512 t2
+      // let Data.Sigma.new fst snd = ind2
+      // let ms2  = Data.Pair.snd snd
+      // let ind3 = Theorem3512 t3
+      // let Data.Sigma.new fst snd = ind3
+      // let ms3  = Data.Pair.snd snd
+      Data.Sigma.new uno (Data.Pair.new (Data.Pair.fst duo) ?)
+  }
+
+  // ?
+// Theorem3512 (Term.tif Term.true t2 t3) =
+  // let ind = Theorem3512 t2
+  // let t0 = Term.tif Term.true (Data.Sigma.fst ind) t3
+
+  // ?
 
 
+  // Data.Sigma.new Term.true (Data.Pair.new ((u: Term) => (s: Step Term.true u) => _ ) (MultiStep.refl Term.true))
 
+// #partial
+// NormalFormc <t: Term> (u: Term) (s: Step t u) (p: Prop.Equal (IsNormalForm t) (IsNormalForm u)) : Data.Empty
+// NormalFormc (Term.tif t1 t2 t3) Term.true  s p = Data.Empty.absurd (Data.Bool.false_not_true p)
+// NormalFormc (Term.tif t1 t2 t3) Term.false s p = Data.Empty.absurd (Data.Bool.false_not_true p)
+// NormalFormc Term.true  (Term.tif t1 t2 t3) s p = Data.Empty.absurd (Data.Bool.true_not_false p)
+// NormalFormc Term.false (Term.tif t1 t2 t3) s p = Data.Empty.absurd (Data.Bool.true_not_false p)
+// // NormalFormc Term.true  Term.true  s p          = ?
+// // NormalFormc Term.true  Term.false s p          = ?
+// // NormalFormc Term.false Term.true  s p          = ?
+// // NormalFormc Term.false Term.false s p          = ?
+// // NormalFormc (Term.tif t1 t2 t3 ) (Term.tif t4 t5 t6) s p = ?
+// // ?
+//
 
-// Theorem_uniqueness
-//   (t : Term)
-//   (u : Term)
-//   (u1: Term)
-//   (e1: MultStep t u)
-//   (e2: MultStep t u1)
-//   (nf_u : NormalForm u)
-//   (nf_u1: NormalForm u1)
-//   : Prop.Equal u u1
-// Theorem_uniqueness t u1 Term.true           e1 e2 (NormalForm.true ) nf_u1 = Prop.Equal.refl
-// Theorem_uniqueness t u1 Term.false          e1 e2 (NormalForm.false) nf_u1 = Prop.Equal.refl
-// Theorem_uniqueness t u1 Term.true           e1 e2 (NormalForm.false) nf_u1 =
-//   let eq1 = Prop.Equal.refl :: Prop.Equal u1        Term.false
-//   let eq2 = Prop.Equal.refl :: Prop.Equal Term.true Term.true
-//   let bu1 = Term.to_bool u1
-//   let app = Prop.Equal.apply (x => Term.to_bool x) eq1
-//   let det = Determinacy Term.true Term.true Term.false
+// Theorem3512
+//   <t: Term>
+//   : [t0: Term] -> (Data.Pair (Prop.Equal (IsNormalForm t0) Data.Bool.true) (MultiStep t t0))
+// Theorem3512 Term.true =
+//   Data.Sigma.new Term.true (Data.Pair.new (Prop.Equal.refl) (MultiStep.refl Term.true))
+// Theorem3512 Term.false =
+//   Data.Sigma.new Term.false (Data.Pair.new (Prop.Equal.refl) (MultiStep.refl Term.false))
+// Theorem3512 (Term.tif t1 t2 t3) =
+//   let ind1 = Theorem3512 t2
+//   let Data.Sigma.new fst snd = ind1
+//   let evf = Eval.zero fst
+//   let evt = Eval.zero (Term.tif t1 t2 t3)
 //   ?
-
-// Theorem_uniqueness t u1 Term.false          e1 e2 (NormalForm.true)  nf_u1 = ?
-// Theorem_uniqueness t u1 (Term.tif t1 t2 t3) e1 e2 nf_u               nf_u1 = ?
+//
 
 
-// Theorem_uniqueness t u u1 (MultStep.refl t1) (MultStep.refl t2) nf_u nf_u1 =
-//   let eq1 = Prop.Equal.refl :: Prop.Equal t1 u
-//   let eq2 = Prop.Equal.refl :: Prop.Equal t2 u1
-//   let eq3 = Prop.Equal.refl :: Prop.Equal t2 t
-//   let eq4 = Prop.Equal.refl :: Prop.Equal t1 t
-//   let ch1 = Prop.Equal.chain (Prop.Equal.mirror eq1) eq4
-//   let ch1 = Prop.Equal.chain ch1 (Prop.Equal.mirror eq3)
-//   Prop.Equal.chain ch1 eq2
-// Theorem_uniqueness t u u1 (MultStep.refl t1) (MultStep.step t2 t3 t4 s1 m1) nf_u nf_u1 =
-//   ?
-// Theorem_uniqueness t u u1 (MultStep.step t1 t2 t3 s1 m1) (MultStep.refl t4) nf_u nf_u1 =
-//   ?
-// Theorem_uniqueness t u u1 (MultStep.step t1 t2 t3 s1 m1) (MultStep.step t4 t5 t6 s2 m2) nf_u nf_u1 =
-//   ?
 
-Term.to_bool (a: Term)  : Data.Bool
-Term.to_bool Term.true  = Data.Bool.true
-Term.to_bool Term.false = Data.Bool.false
-Term.to_bool a          = Term.to_bool (Eval a)
+// TheoremTermination (t: Term) : [u: Term] -> Data.Pair (MultiStep t u) (Prop.Equal Data.Bool Data.Bool.true (IsNormalForm u))
+//     TheoremTermination t =
+//         Apps.HVM.log t (
+//         match Term t {
+//             true  => $ Term.true (Data.Pair.new (MultiStep.refl Term.true) Prop.Equal.refl)
+//             false => $ Term.false (Data.Pair.new (MultiStep.refl Term.false) Prop.Equal.refl)
+//             tif cond tp fp =>
+//                 let ind = TheoremTermination cond
+//                 let Data.Sigma.new fst snd = ind
+//                   ?
+//                 // match Data.Sigma ind {//with (tp: Term) (cond: Term) (fp: Term) {
+//                     // new fst snd => ?
+//                         // match Term fst with (snd : (Data.Pair (MultiStep cond fst) (Prop.Equal Data.Bool Data.Bool.true (IsNormalForm fst)))) {
+//                             // true => ?
+//                             // false => ?
+//                             // tif cond tp fp => ?
+//                         // }
+//                 // }
+// } : [u: Term] -> Data.Pair (MultiStep t u) (Prop.Equal Data.Bool Data.Bool.true (IsNormalForm u))
+// )
+//
+
+
+
+
+
+
 
 type BadNat{
   wrong
@@ -596,5 +691,6 @@ Main {
   let test2 = Term.tif Term.true (Eval (Term.tif Term.false Term.false Term.false)) test1
   let test3 = Le.S (Le.n 4n)
   let test4 = Le.S (Le.n 3n)
-  (Eval test1)
+  // (Eval test1)
+  (IsNormalForm Term.true)
 }
